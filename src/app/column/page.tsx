@@ -10,6 +10,23 @@ export const metadata: Metadata = {
 
 export default function ColumnListPage() {
   const columns = getAllColumns();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-50 py-8 px-4">
+      <div className="max-w-2xl mx-auto">
+
+        <header className="mb-6">
+          <Link href="/" className="text-xs text-indigo-500 hover:underline">
+            ← トップに戻る
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-800 mt-2">📖 塗装テクニックコラム</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            湿度・気温・塗料の知識で、もっと上手く塗装しよう
+          </p>
+        </header>
+
+        <div className="space-y-3">
+          {columns.map((col) => (
             <Link
               key={col.slug}
               href={`/column/${col.slug}`}
