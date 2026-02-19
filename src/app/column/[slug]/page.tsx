@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MDXRemote } from 'next-mdx-remote/rsc';
+import remarkGfm from 'remark-gfm';
 import { getAllSlugs, getColumnBySlug } from '@/lib/mdx';
 
 interface Props {
@@ -52,7 +53,7 @@ export default async function ColumnPage({ params }: Props) {
           <p className="text-sm text-gray-500 mb-6 pb-4 border-b border-gray-100">{col.description}</p>
 
           <div className="article-body">
-            <MDXRemote source={col.content} />
+            <MDXRemote source={col.content} options={{ mdxOptions: { remarkPlugins: [remarkGfm] } }} />
           </div>
         </article>
 
