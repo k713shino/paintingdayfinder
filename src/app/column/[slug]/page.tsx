@@ -56,15 +56,7 @@ export default async function ColumnPage({ params }: Props) {
           <p className="text-sm text-gray-500 mb-6 pb-4 border-b border-gray-100">{col.description}</p>
 
           {/* 記事本文 */}
-          <div
-            className="prose prose-sm prose-gray max-w-none
-              prose-headings:font-bold prose-headings:text-gray-800
-              prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-2
-              prose-p:text-gray-600 prose-p:leading-relaxed
-              prose-table:text-sm prose-td:py-1 prose-th:py-1
-              prose-strong:text-gray-700"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div className="article-body" dangerouslySetInnerHTML={{ __html: html }} />
         </article>
 
         {/* トップへの誘導 */}
@@ -100,16 +92,18 @@ function formatDate(dateStr: string) {
 
 // シンプルなMarkdown→HTML変換（headings, p, table, strong, liのみ対応）
 function simpleMarkdownToHtml(md: string): string {
-  return md
+  const html = md
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // テーブル（簡易）
+    // テーブルセパレータ行を除去（|---|---|---| 形式）
+    .replace(/^\|[ |\-:]+\|$/gm, '')
+    // テーブル行を<tr><td>に変換
     .replace(/^\|(.+)\|$/gm, (line) => {
       const cells = line.split('|').slice(1, -1).map((c) => c.trim());
       return `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
     })
-    .replace(/^---$/gm, '') // セパレータ行を除去
+    .replace(/^---$/gm, '')
     .replace(/(<tr>.*<\/tr>)/gs, '<table>$1</table>')
     // 箇条書き
     .replace(/^- (.+)$/gm, '<li>$1</li>')
@@ -117,4 +111,17 @@ function simpleMarkdownToHtml(md: string): string {
     // 段落
     .replace(/^(?!<[hultd])(.+)$/gm, '<p>$1</p>')
     .replace(/<\/ul>\s*<ul>/g, '');
+
+  // テーブル先頭行の<td>を<th>に変換
+  return html.replace(/<table>([\s\S]*?)<\/table>/g, (_: string, content: string) => {
+    let isFirst = true;
+    const processed = content.replace(/<tr>([\s\S]*?)<\/tr>/g, (match: string, cells: string) => {
+      if (isFirst) {
+        isFirst = false;
+        return `<tr>${cells.replace(/<td>(.*?)<\/td>/g, '<th>$1</th>')}</tr>`;
+      }
+      return match;
+    });
+    return `<table>${processed}</table>`;
+  });
 }
