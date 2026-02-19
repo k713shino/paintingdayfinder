@@ -40,5 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# AI
-/.claude
+# IDE
+.vscode/
+.idea/
+.serena/
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+
