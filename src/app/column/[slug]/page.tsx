@@ -5,7 +5,7 @@ import { MDXRemote } from 'next-mdx-remote/rsc';
 import { getAllSlugs, getColumnBySlug } from '@/lib/mdx';
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
@@ -13,7 +13,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const col = getColumnBySlug(params.slug);
+  const { slug } = await params;
+  const col = getColumnBySlug(slug);
   if (!col) return {};
   return {
     title: col.title,
@@ -27,8 +28,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function ColumnPage({ params }: Props) {
-  const col = getColumnBySlug(params.slug);
+export default async function ColumnPage({ params }: Props) {
+  const { slug } = await params;
+  const col = getColumnBySlug(slug);
   if (!col) notFound();
 
   return (
