@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { columns, getColumnBySlug } from '@/lib/columns';
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 // ビルド時に全スラグを静的生成
@@ -14,7 +14,8 @@ export async function generateStaticParams() {
 
 // 各ページのメタデータを動的に設定
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const col = getColumnBySlug(params.slug);
+  const { slug } = await params;
+  const col = getColumnBySlug(slug);
   if (!col) return {};
   return {
     title: col.title,
@@ -28,8 +29,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function ColumnPage({ params }: Props) {
-  const col = getColumnBySlug(params.slug);
+export default async function ColumnPage({ params }: Props) {
+  const { slug } = await params;
+  const col = getColumnBySlug(slug);
   if (!col) notFound();
 
   // Markdownを簡易的にHTMLに変換（next-mdxは不要なシンプル版）
