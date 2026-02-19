@@ -96,24 +96,27 @@ function calcHumidityScore(
   const label = PAINT_LABEL[paintType];
 
   if (humidity > t.veryHigh) {
-    return {
-      penalty: paintType === 'waterbase' ? 35 : 40,
-      reason: `湿度が高すぎます（${humidity}%）。${label}でも乾燥・仕上がりに悪影響があります`,
-    };
+    const reason = paintType === 'waterbase'
+      ? `湿度が高すぎます（${humidity}%）。水性アクリルでも乾燥が著しく遅くなり仕上がりに影響します`
+      : `湿度が高すぎます（${humidity}%）。${label}は乾燥・仕上がりに重大な悪影響があります`;
+    return { penalty: paintType === 'waterbase' ? 35 : 40, reason };
   }
   if (humidity > t.high) {
-    return {
-      penalty: paintType === 'waterbase' ? 15 : 20,
-      reason: paintType === 'lacquer'
-        ? `湿度がやや高め（${humidity}%）。ラッカー系は白化リスクがあります`
-        : `湿度がやや高め（${humidity}%）。${label}は乾燥が遅くなります`,
-    };
+    let reason: string;
+    if (paintType === 'lacquer') {
+      reason = `湿度がやや高め（${humidity}%）。ラッカー系は白化（カブリ）リスクがあります`;
+    } else if (paintType === 'waterbase') {
+      reason = `湿度がやや高め（${humidity}%）。水性アクリルは比較的耐性がありますが乾燥が遅くなります`;
+    } else {
+      reason = `湿度がやや高め（${humidity}%）。エナメル系は乾燥が遅くなります`;
+    }
+    return { penalty: paintType === 'waterbase' ? 15 : 20, reason };
   }
   if (humidity > t.slightly) {
-    return {
-      penalty: 5,
-      reason: `湿度は許容範囲内（${humidity}%）。${label}でも問題は少ないです`,
-    };
+    const reason = paintType === 'waterbase'
+      ? `湿度は許容範囲内（${humidity}%）。水性アクリルは問題なく使用できます`
+      : `湿度はやや高め（${humidity}%）。${label}は注意しながら作業しましょう`;
+    return { penalty: 5, reason };
   }
   if (humidity >= t.low) {
     return {

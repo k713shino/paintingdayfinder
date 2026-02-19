@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   keywords: ['模型塗装', 'ガンプラ', 'ホビー塗装', 'ラッカー', 'エナメル', '天気', '湿度', '塗装日和', 'プラモデル'],
   authors: [{ name: '塗装日和' }],
   robots: { index: true, follow: true },
+  icons: {
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   openGraph: {
     type: 'website',
     locale: 'ja_JP',

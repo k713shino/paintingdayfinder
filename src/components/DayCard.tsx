@@ -32,11 +32,11 @@ export function DayCard({ forecast, isToday }: { forecast: DayForecast; isToday:
         type="button"
         className="w-full text-left p-4"
         onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded}
+        aria-expanded={String(expanded) as 'true' | 'false'}
       >
         <div className="flex items-center gap-3">
           {/* 日付 */}
-          <div className="flex flex-col items-center min-w-[3rem]">
+          <div className="flex flex-col items-center min-w-12">
             {isToday && (
               <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded mb-0.5">
                 今日
