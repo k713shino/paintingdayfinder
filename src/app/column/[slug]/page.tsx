@@ -34,7 +34,7 @@ export default async function ColumnPage({ params }: Props) {
   if (!col) notFound();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-50 py-8 px-4">
+    <div className="min-h-screen bg-linear-to-br from-sky-50 to-indigo-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
 
         {/* パンくずリスト */}
@@ -51,13 +51,7 @@ export default async function ColumnPage({ params }: Props) {
           <h1 className="text-xl font-bold text-gray-800 leading-snug mb-2">{col.title}</h1>
           <p className="text-sm text-gray-500 mb-6 pb-4 border-b border-gray-100">{col.description}</p>
 
-          <div className="prose prose-sm prose-gray max-w-none
-            prose-headings:font-bold prose-headings:text-gray-800
-            prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-2
-            prose-p:text-gray-600 prose-p:leading-relaxed
-            prose-table:text-sm prose-td:py-1 prose-th:py-1
-            prose-strong:text-gray-700
-            prose-li:text-gray-600">
+          <div className="article-body">
             <MDXRemote source={col.content} />
           </div>
         </article>

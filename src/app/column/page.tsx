@@ -12,7 +12,7 @@ export default function ColumnListPage() {
   const columns = getAllColumns();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-50 py-8 px-4">
+    <div className="min-h-screen bg-linear-to-br from-sky-50 to-indigo-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
 
         <header className="mb-6">
