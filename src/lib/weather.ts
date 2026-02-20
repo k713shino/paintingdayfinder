@@ -208,6 +208,14 @@ function scoreToLabel(score: number): DayForecast['scoreLabel'] {
   return 'poor';
 }
 
+/** スコアから塗装失敗率(%)を算出する。高スコアほど低い失敗率になる非線形マッピング */
+export function calcFailureRate(score: number): number {
+  if (score >= 80) return Math.max(3, Math.round(20 - score * 0.2));
+  if (score >= 60) return Math.round(20 + (80 - score) * 0.75);
+  if (score >= 40) return Math.round(35 + (60 - score) * 1.5);
+  return Math.min(95, Math.round(65 + (40 - score) * 0.75));
+}
+
 export async function reverseGeocode(lat: number, lon: number): Promise<string> {
   try {
     const res = await fetch(
