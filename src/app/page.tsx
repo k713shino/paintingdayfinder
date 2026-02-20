@@ -8,12 +8,41 @@ import { AffiliateItems } from '@/components/AffiliateItems';
 import Link from 'next/link';
 
 type Status = 'idle' | 'locating' | 'loading' | 'success' | 'error';
+type LocationMode = 'gps' | 'city';
 
 const PAINT_TYPE_OPTIONS: { type: PaintType; label: string; description: string }[] = [
   { type: 'lacquer',   label: 'ラッカー', description: '湿度に最も敏感。白化リスクあり' },
   { type: 'waterbase', label: '水性',     description: '湿度耐性が高め。乾燥は遅め' },
   { type: 'enamel',    label: 'エナメル', description: '中間的な湿度耐性' },
 ];
+
+type City = { name: string; lat: number; lon: number; region: string };
+
+const MAJOR_CITIES: City[] = [
+  { name: '札幌',     lat: 43.0642, lon: 141.3469, region: '北海道' },
+  { name: '仙台',     lat: 38.2688, lon: 140.8721, region: '東北' },
+  { name: '東京',     lat: 35.6895, lon: 139.6917, region: '関東' },
+  { name: '横浜',     lat: 35.4437, lon: 139.6380, region: '関東' },
+  { name: 'さいたま', lat: 35.8617, lon: 139.6456, region: '関東' },
+  { name: '千葉',     lat: 35.6073, lon: 140.1063, region: '関東' },
+  { name: '新潟',     lat: 37.9026, lon: 139.0232, region: '中部' },
+  { name: '金沢',     lat: 36.5613, lon: 136.6562, region: '中部' },
+  { name: '静岡',     lat: 34.9756, lon: 138.3828, region: '中部' },
+  { name: '名古屋',   lat: 35.1815, lon: 136.9066, region: '中部' },
+  { name: '大阪',     lat: 34.6937, lon: 135.5022, region: '近畿' },
+  { name: '京都',     lat: 35.0116, lon: 135.7681, region: '近畿' },
+  { name: '神戸',     lat: 34.6913, lon: 135.1830, region: '近畿' },
+  { name: '広島',     lat: 34.3853, lon: 132.4553, region: '中国' },
+  { name: '岡山',     lat: 34.6618, lon: 133.9350, region: '中国' },
+  { name: '高松',     lat: 34.3401, lon: 134.0434, region: '四国' },
+  { name: '高知',     lat: 33.5597, lon: 133.5311, region: '四国' },
+  { name: '福岡',     lat: 33.5902, lon: 130.4017, region: '九州' },
+  { name: '熊本',     lat: 32.7898, lon: 130.7417, region: '九州' },
+  { name: '鹿児島',   lat: 31.5966, lon: 130.5571, region: '九州' },
+  { name: '那覇',     lat: 26.2124, lon: 127.6809, region: '沖縄' },
+];
+
+const CITY_REGIONS = [...new Set(MAJOR_CITIES.map((c) => c.region))];
 
 export default function HomePage() {
   const [status, setStatus] = useState<Status>('idle');
@@ -22,6 +51,8 @@ export default function HomePage() {
   const [forecasts, setForecasts] = useState<DayForecast[]>([]);
   const [paintType, setPaintType] = useState<PaintType>('lacquer');
   const [rawWeatherData, setRawWeatherData] = useState<RawDayData[] | null>(null);
+  const [locationMode, setLocationMode] = useState<LocationMode>('gps');
+  const [selectedCityName, setSelectedCityName] = useState<string>(MAJOR_CITIES[0].name);
 
   function handlePaintTypeChange(newType: PaintType) {
     setPaintType(newType);
@@ -30,27 +61,37 @@ export default function HomePage() {
     }
   }
 
-  async function load() {
-    setStatus('locating');
+  async function load(overrideMode?: LocationMode, overrideCityName?: string) {
+    const mode = overrideMode ?? locationMode;
+    const cityName = overrideCityName ?? selectedCityName;
+
     setError('');
 
-    let pos: GeolocationPosition;
-    try {
-      pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
-      );
-    } catch {
-      setStatus('error');
-      setError('位置情報の取得に失敗しました。ブラウザの位置情報を許可してください。');
-      return;
+    let loc: LocationInfo;
+
+    if (mode === 'gps') {
+      setStatus('locating');
+      let pos: GeolocationPosition;
+      try {
+        pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
+        );
+      } catch {
+        setStatus('error');
+        setError('位置情報の取得に失敗しました。ブラウザの位置情報を許可してください。');
+        return;
+      }
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      setStatus('loading');
+      const city = await reverseGeocode(lat, lon);
+      loc = { latitude: lat, longitude: lon, city };
+    } else {
+      const city = MAJOR_CITIES.find((c) => c.name === cityName)!;
+      loc = { latitude: city.lat, longitude: city.lon, city: city.name };
+      setStatus('loading');
     }
 
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-
-    setStatus('loading');
-    const city = await reverseGeocode(lat, lon);
-    const loc: LocationInfo = { latitude: lat, longitude: lon, city };
     setLocation(loc);
 
     try {
@@ -64,8 +105,23 @@ export default function HomePage() {
     }
   }
 
+  function handleLocationModeChange(mode: LocationMode) {
+    setLocationMode(mode);
+    if (mode === 'gps') {
+      load('gps');
+    } else {
+      load('city', selectedCityName);
+    }
+  }
+
+  function handleCityChange(cityName: string) {
+    setSelectedCityName(cityName);
+    load('city', cityName);
+  }
+
   useEffect(() => {
     load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -111,40 +167,102 @@ export default function HomePage() {
           </Link>
         </header>
 
-        {/* 塗料種別セレクター */}
-        <div className="mb-5 bg-white rounded-2xl border border-gray-200 p-3">
-          <p className="text-xs font-semibold text-gray-500 mb-2 text-center">塗料の種類を選択</p>
-          <div className="flex justify-center gap-2">
-            {PAINT_TYPE_OPTIONS.map((opt) => (
+        {/* 条件設定カード */}
+        <div className="mb-5 bg-white rounded-2xl border border-gray-200 shadow-sm">
+
+          {/* 塗料の種類 */}
+          <div className="p-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">塗料の種類</p>
+            <div className="flex gap-2">
+              {PAINT_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.type}
+                  type="button"
+                  onClick={() => handlePaintTypeChange(opt.type)}
+                  className={`flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border ${
+                    paintType === opt.type
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">{currentPaintOption.description}</p>
+          </div>
+
+          <div className="border-t border-gray-100 mx-4" />
+
+          {/* 場所 */}
+          <div className="p-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">場所</p>
+            <div className="flex gap-2">
               <button
-                key={opt.type}
                 type="button"
-                onClick={() => handlePaintTypeChange(opt.type)}
+                onClick={() => handleLocationModeChange('gps')}
                 className={`flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border ${
-                  paintType === opt.type
+                  locationMode === 'gps'
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
                 }`}
               >
-                {opt.label}
+                📍 現在地
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => handleLocationModeChange('city')}
+                className={`flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border ${
+                  locationMode === 'city'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                }`}
+              >
+                🏙️ 都市を選択
+              </button>
+            </div>
+
+            {locationMode === 'city' && (
+              <select
+                value={selectedCityName}
+                onChange={(e) => handleCityChange(e.target.value)}
+                aria-label="都市を選択"
+                className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 bg-gray-50 focus:outline-none focus:border-indigo-400"
+              >
+                {CITY_REGIONS.map((region) => (
+                  <optgroup key={region} label={region}>
+                    {MAJOR_CITIES.filter((c) => c.region === region).map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+
+            {location && (
+              <p className="mt-2 text-xs text-gray-500">
+                現在：{location.city || `${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`}
+                {locationMode === 'gps' && (
+                  <button
+                    type="button"
+                    onClick={() => load('gps')}
+                    className="ml-2 text-indigo-500 hover:text-indigo-700 underline"
+                  >
+                    再読み込み
+                  </button>
+                )}
+              </p>
+            )}
           </div>
-          <p className="text-center text-xs text-gray-400 mt-2">{currentPaintOption.description}</p>
         </div>
 
-        {/* 位置情報表示 */}
-        {location && (
-          <div className="text-center mb-4 text-sm text-gray-600">
-            📍 {location.city || `${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`}
-            <button
-              type="button"
-              onClick={load}
-              className="ml-3 text-indigo-500 hover:text-indigo-700 underline text-xs"
-            >
-              再読み込み
-            </button>
-          </div>
+        {/* 結果セクション見出し */}
+        {(status === 'loading' || status === 'locating' || status === 'success') && (
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
+            7日間の塗装スコア
+          </p>
         )}
 
         {/* ローディング */}
@@ -163,7 +281,7 @@ export default function HomePage() {
             <p className="text-red-600 mb-4">{error}</p>
             <button
               type="button"
-              onClick={load}
+              onClick={() => load()}
               className="px-5 py-2 bg-indigo-600 text-white rounded-full text-sm hover:bg-indigo-700 transition-colors"
             >
               再試行
@@ -176,7 +294,7 @@ export default function HomePage() {
           <div className="text-center py-16">
             <button
               type="button"
-              onClick={load}
+              onClick={() => load()}
               className="px-8 py-3 bg-indigo-600 text-white rounded-full text-base font-semibold hover:bg-indigo-700 transition-colors shadow"
             >
               天気を取得する
@@ -207,6 +325,14 @@ export default function HomePage() {
         {/* 予報リスト */}
         {status === 'success' && (
           <main>
+            {/* 凡例（リストの直前に配置） */}
+            <div className="flex gap-3 mb-3 text-xs text-gray-500 flex-wrap">
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block" />最適</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block" />良好</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" />やや注意</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />不向き</span>
+            </div>
+
             <div className="space-y-3">
               {forecasts.map((f) => (
                 <DayCard key={f.date} forecast={f} isToday={f.date === today} />
@@ -214,34 +340,6 @@ export default function HomePage() {
             </div>
             <AffiliateItems score={bestDay?.paintingScore ?? 0} />
           </main>
-        )}
-
-        {/* 凡例 */}
-        {status === 'success' && (
-          <section aria-label="スコア凡例" className="mt-6 bg-white rounded-2xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-500 mb-2">スコアの目安</p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-green-400 inline-block" />
-                <span><strong>最適 (80〜100)</strong>: 迷わず塗装OK</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-blue-400 inline-block" />
-                <span><strong>良好 (60〜79)</strong>: 概ね問題なし</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" />
-                <span><strong>やや注意 (40〜59)</strong>: 条件に注意</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-red-400 inline-block" />
-                <span><strong>不向き (0〜39)</strong>: 塗装は避けて</span>
-              </div>
-            </div>
-            <p className="text-[11px] text-gray-400 mt-3">
-              ※ スコアは湿度・気温・降水確率・風速を基に算出しています。選択した塗料種別により湿度の評価基準が変わります。
-            </p>
-          </section>
         )}
 
         {/* コラムへの誘導 */}
