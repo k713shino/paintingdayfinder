@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 塗装日和
 
-## Getting Started
+模型・ガンプラ・ミニチュアなどのホビー塗装に最適な日を天気予報から自動判定するWebアプリです。
 
-First, run the development server:
+**URL:** https://paintingdayfinder.vercel.app/
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 概要
+
+ブラウザの位置情報を使い、現在地の7日間天気予報を取得。湿度・気温・降水確率・風速をもとに塗装適性スコア（0〜100点）を算出して一覧表示します。塗料の種類（ラッカー系・エナメル系・水性アクリル）によってスコアの閾値が変わります。
+
+## 機能
+
+- **塗装スコア判定** — 湿度・気温・降水確率・風速・天気コードを総合して0〜100点でスコア化
+- **塗料種別対応** — ラッカー系 / エナメル系 / 水性アクリルの3種類で閾値を切り替え
+- **7日間予報** — Open-Meteo API（無料・APIキー不要）を使用
+- **現在地取得** — Geolocation API + Nominatim（OpenStreetMap）による逆ジオコーディング
+- **コラム記事** — 湿度・温度・風など塗装に関するMDX形式のコラムを掲載
+
+## スコア基準
+
+| スコア | ラベル | 目安 |
+|--------|--------|------|
+| 80〜100 | Excellent | 最高の塗装日和 |
+| 60〜79 | Good | 良好 |
+| 40〜59 | Fair | 注意が必要 |
+| 0〜39 | Poor | 避けた方が無難 |
+
+## 技術スタック
+
+| 項目 | 内容 |
+|------|------|
+| フレームワーク | Next.js 16 (App Router) |
+| 言語 | TypeScript (strict) |
+| スタイリング | Tailwind CSS v4 |
+| コンテンツ | MDX (next-mdx-remote + remark-gfm) |
+| 天気データ | [Open-Meteo API](https://open-meteo.com/) |
+| 逆ジオコーディング | [Nominatim (OpenStreetMap)](https://nominatim.org/) |
+| デプロイ | Vercel |
+
+## ディレクトリ構成
+
+```
+src/
+├── app/
+│   ├── page.tsx              # メインページ（天気取得・スコア表示）
+│   ├── layout.tsx            # ルートレイアウト・メタデータ
+│   ├── column/               # コラム一覧・記事ページ
+│   ├── api/products/         # アフィリエイト商品APIルート
+│   ├── robots.ts
+│   └── sitemap.ts
+├── components/
+│   ├── DayCard.tsx           # 1日分の予報カード
+│   ├── ScoreBadge.tsx        # スコアバッジ
+│   ├── WeatherIcon.tsx       # 天気アイコン
+│   └── AffiliateItems.tsx    # アフィリエイト商品表示
+├── lib/
+│   ├── weather.ts            # 天気取得・スコア計算ロジック
+│   └── mdx.ts                # MDXファイル読み込み
+├── content/                  # コラム記事（MDX）
+└── types.ts                  # 共通型定義
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 開発
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 依存関係のインストール
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 開発サーバー起動
+npm run dev
 
-## Learn More
+# ビルド
+npm run build
 
-To learn more about Next.js, take a look at the following resources:
+# Lintチェック
+npm run lint
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+開発サーバー起動後、[http://localhost:3000](http://localhost:3000) をブラウザで開いてください。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 環境変数
 
-## Deploy on Vercel
+`.env.local` に以下を設定します（現状、外部APIキーは不要です）。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+# 例: アフィリエイト商品APIなどを追加する場合に使用
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## ライセンス
+
+Private
