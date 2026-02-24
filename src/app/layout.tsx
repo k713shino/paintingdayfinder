@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 
@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   keywords: ['模型塗装', 'ガンプラ', 'ホビー塗装', 'ラッカー', 'エナメル', '天気', '湿度', '塗装日和', 'プラモデル'],
   authors: [{ name: '塗装日和' }],
   robots: { index: true, follow: true },
+  manifest: '/manifest.json',
   icons: {
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
@@ -47,6 +48,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: '#4f46e5',
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -54,9 +59,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#4f46e5" />
+      <body className={notoSansJP.className}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -74,8 +77,8 @@ export default function RootLayout({
             }),
           }}
         />
-      </head>
-      <body className={notoSansJP.className}>{children}</body>
+        {children}
+      </body>
     </html>
   );
 }
