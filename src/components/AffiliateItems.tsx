@@ -1,4 +1,7 @@
 // PA-APIが使えるようになったら api/products.ts を使う版に切り替えてください
+'use client';
+
+import { useMemo } from 'react';
 
 interface Product {
   asin: string;
@@ -9,6 +12,7 @@ interface Product {
 }
 
 const PRODUCTS: Product[] = [
+  // === 既存6件 ===
   {
     asin: 'B0DLW4S914',
     name: 'ミネシマ(Mineshima) プラモのためのガラスヤスリ ホビー用ツール GF-1',
@@ -51,7 +55,80 @@ const PRODUCTS: Product[] = [
     price: '¥500前後',
     tag: '筆',
   },
+  // === 追加10件（ASINはAmazonで要確認） ===
+  {
+    asin: 'B0CH2QZH57',
+    name: 'タミヤ クラフトツールシリーズ 先細薄刃ニッパー',
+    description: 'ゲート跡が目立たない定番ニッパー',
+    price: '¥3,000前後',
+    tag: '工具',
+  },
+  {
+    asin: 'B00E5W716A',
+    name: 'GSIクレオス ガンダムマーカー 流し込みスミ入れペン ブラック GM301',
+    description: '凹モールドを際立たせるパネルライン塗料',
+    price: '¥500前後',
+    tag: 'スミ入れ',
+  },
+  {
+    asin: 'B000BMYWYC',
+    name: 'タミヤ 流し込み接着剤',
+    description: 'パーツの合わせ目消しに欠かせない接着剤、Amazonは高いので地元の模型店で買ったほうが安い',
+    price: '¥350前後',
+    tag: '接着剤',
+  },
+  {
+    asin: 'B09VH99TDT',
+    name: 'aurochs 超 極薄刃 ニッパー 片刃 精密 プラスチック専用 工具 プラモデル 模型 ゲートカット せなすけモデル （せなすけブルー/右手用）',
+    description: '白化しにくい究極の薄刃ニッパー',
+    price: '¥5,000前後',
+    tag: '工具',
+  },
+  {
+    asin: 'B0FT822TDR',
+    name: 'GSIクレオス Mr.トップコート 水性プレミアムトップコートスプレー つや消し',
+    description: '完成品の仕上げに必須のつや消しコート',
+    price: '¥700前後',
+    tag: 'トップコート',
+  },
+  {
+    asin: 'B006MMP4BA',
+    name: 'TAMIYA マークフィット ハードタイプ',
+    description: 'デカールをなじませる軟化剤',
+    price: '¥300前後',
+    tag: 'デカール',
+  },
+  {
+    asin: 'B07YGBG95Y',
+    name: 'ゴッドハンド(GodHand) 神ヤス! スポンジ布ヤスリ 3mm厚 3種類セットB',
+    description: '各番手を使い分けられる定番スポンジヤスリ',
+    price: '¥500前後',
+    tag: '工具',
+  },
+  {
+    asin: 'B0CKRXT4J6',
+    name: 'タミヤ 棒ヤスリ セット（平・半丸・丸）',
+    description: 'パーツ整形・ゲート処理に使う金属ヤスリ',
+    price: '¥600前後',
+    tag: '工具',
+  },
+  {
+    asin: 'B01EDX3KKG',
+    name: 'GSIクレオス Mr.メタルプライマー改',
+    description: 'メタルパーツへの塗料食いつきを改善',
+    price: '¥1,700前後',
+    tag: '下地処理',
+  },
+  {
+    asin: 'B0CCLBCK3L',
+    name: 'ウォーハンマー 40000 ペイント ツール セット',
+    description: 'ミニチュア塗装に必要なブラシ・塗料・パレットが揃う入門セット',
+    price: '¥4,800前後',
+    tag: '水性塗料セット',
+  },
 ];
+
+const DISPLAY_COUNT = 5;
 
 interface Props {
   score: number;
@@ -59,6 +136,11 @@ interface Props {
 
 export function AffiliateItems({ score }: Props) {
   if (score < 60) return null;
+
+  const displayed = useMemo(() => {
+    const shuffled = [...PRODUCTS].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, DISPLAY_COUNT);
+  }, []);
 
   return (
     <section aria-label="おすすめ塗装グッズ" className="mt-5">
@@ -68,7 +150,7 @@ export function AffiliateItems({ score }: Props) {
         </p>
 
         <div className="space-y-2">
-          {PRODUCTS.map((p) => (
+          {displayed.map((p) => (
             <a
               key={p.asin}
               href={`https://www.amazon.co.jp/dp/${p.asin}?tag=k713shino-22`}
