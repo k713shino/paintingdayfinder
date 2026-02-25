@@ -482,15 +482,27 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <footer className="mt-6 text-center text-xs text-gray-400">
-          気象データ:{' '}
-          <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="underline">
-            Open-Meteo
-          </a>
-          　地名:{' '}
-          <a href="https://nominatim.org/" target="_blank" rel="noopener noreferrer" className="underline">
-            Nominatim/OSM
-          </a>
+        <footer className="mt-6 space-y-3 text-center text-xs text-gray-400">
+          <div className="flex justify-center">
+            <a
+              href="https://my-boardgame-site.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[0.7rem] font-medium text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700"
+            >
+              🎲 Dice Journal — 霧島市発のボードゲーム情報メディア
+            </a>
+          </div>
+          <div>
+            気象データ:{' '}
+            <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="underline">
+              Open-Meteo
+            </a>
+            　地名:{' '}
+            <a href="https://nominatim.org/" target="_blank" rel="noopener noreferrer" className="underline">
+              Nominatim/OSM
+            </a>
+          </div>
         </footer>
       </div>
     </div>
