@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { DayForecast, LocationInfo, PaintType, RawDayData } from '@/types';
-import { fetchWeather, reverseGeocode, calcForecasts, calcFailureRate } from '@/lib/weather';
+import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData } from '@/types';
+import { fetchWeather, reverseGeocode, calcForecasts, calcFailureRate, calcCurrentScore } from '@/lib/weather';
 import { DayCard } from '@/components/DayCard';
 import { AffiliateItems } from '@/components/AffiliateItems';
 import Link from 'next/link';
@@ -51,6 +51,7 @@ export default function HomePage() {
   const [forecasts, setForecasts] = useState<DayForecast[]>([]);
   const [paintType, setPaintType] = useState<PaintType>('lacquer');
   const [rawWeatherData, setRawWeatherData] = useState<RawDayData[] | null>(null);
+  const [currentWeather, setCurrentWeather] = useState<CurrentWeather | null>(null);
   const [locationMode, setLocationMode] = useState<LocationMode>('gps');
   const [selectedCityName, setSelectedCityName] = useState<string>(MAJOR_CITIES[0].name);
 
@@ -95,9 +96,10 @@ export default function HomePage() {
     setLocation(loc);
 
     try {
-      const rawData = await fetchWeather(loc);
-      setRawWeatherData(rawData);
-      setForecasts(calcForecasts(rawData, paintType));
+      const { daily, current } = await fetchWeather(loc);
+      setRawWeatherData(daily);
+      setCurrentWeather(current);
+      setForecasts(calcForecasts(daily, paintType));
       setStatus('success');
     } catch (e) {
       setStatus('error');
@@ -293,6 +295,13 @@ export default function HomePage() {
               const heroItems = getHeroItems(todayForecast);
               const d = new Date(todayForecast.date);
               const dayName = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+              const currentScore = currentWeather ? calcCurrentScore(currentWeather, paintType) : null;
+              const currentScoreBadge = currentScore ? ({
+                excellent: 'bg-green-100 text-green-700',
+                good:      'bg-blue-100 text-blue-700',
+                fair:      'bg-amber-100 text-amber-700',
+                poor:      'bg-red-100 text-red-700',
+              } as const)[currentScore.scoreLabel] : '';
               return (
                 <div className="mb-4 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                   <div className={`h-2 ${heroConf.accent}`} />
@@ -314,6 +323,28 @@ export default function HomePage() {
                         </p>
                       </div>
                     </div>
+
+                    {/* 現在の天気 */}
+                    {currentWeather && currentScore && (
+                      <div className="flex items-center gap-2 text-xs bg-sky-50 rounded-xl px-3 py-2 mb-4 flex-wrap">
+                        <span className="text-[10px] font-bold text-sky-500 shrink-0">今の天気</span>
+                        <span>{wCodeToIcon(currentWeather.weatherCode)}</span>
+                        <span className="text-gray-700 font-semibold">{wCodeToLabel(currentWeather.weatherCode)}</span>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-gray-600">{currentWeather.temperature}°C</span>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-gray-600">湿度{currentWeather.humidity}%</span>
+                        {currentWeather.windspeed >= 10 && (
+                          <>
+                            <span className="text-gray-400">·</span>
+                            <span className="text-gray-600">風{currentWeather.windspeed}km/h</span>
+                          </>
+                        )}
+                        <span className={`ml-auto shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${currentScoreBadge}`}>
+                          今のスコア {currentScore.score}
+                        </span>
+                      </div>
+                    )}
 
                     {/* クイック3項目 */}
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
@@ -632,3 +663,29 @@ function getWeekendVerdict(
 
 // formatDateJa は将来の拡張のために残す
 void formatDateJa;
+
+function wCodeToIcon(code: number): string {
+  if (code === 0) return '☀️';
+  if (code <= 2) return '⛅';
+  if (code === 3) return '☁️';
+  if (code <= 49) return '🌫️';
+  if (code <= 57) return '🌦️';
+  if (code <= 67) return '🌧️';
+  if (code <= 77) return '🌨️';
+  if (code <= 82) return '🌦️';
+  if (code <= 86) return '🌨️';
+  return '⛈️';
+}
+
+function wCodeToLabel(code: number): string {
+  if (code === 0) return '快晴';
+  if (code <= 2) return '晴れ時々曇り';
+  if (code === 3) return '曇り';
+  if (code <= 49) return '霧';
+  if (code <= 57) return '霧雨';
+  if (code <= 67) return '雨';
+  if (code <= 77) return '雪';
+  if (code <= 82) return '雨のち晴れ';
+  if (code <= 86) return '雪のち晴れ';
+  return '雷雨';
+}

@@ -19,6 +19,16 @@ export interface LocationInfo {
   city?: string;
 }
 
+/** Open-Meteo の current パラメータで取得するリアルタイム天気 */
+export interface CurrentWeather {
+  temperature: number; // °C (整数丸め)
+  humidity: number;    // %
+  weatherCode: number; // WMO code
+  windspeed: number;   // km/h
+  precipitation: number; // mm (直近1時間)
+  isDay: boolean;
+}
+
 /** fetchRawWeather が返す生気象データ（1日分） */
 export interface RawDayData {
   date: string;

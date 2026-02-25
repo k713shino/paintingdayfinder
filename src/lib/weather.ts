@@ -1,6 +1,15 @@
-import type { DayForecast, LocationInfo, PaintType, RawDayData } from '../types';
+import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData } from '../types';
 
 interface OpenMeteoResponse {
+  current: {
+    time: string;
+    temperature_2m: number;
+    relative_humidity_2m: number;
+    weather_code: number;
+    wind_speed_10m: number;
+    precipitation: number;
+    is_day: number;
+  };
   daily: {
     time: string[];
     temperature_2m_max: number[];
@@ -12,11 +21,21 @@ interface OpenMeteoResponse {
   };
 }
 
-/** Open-Meteo から生気象データを取得する（スコア計算は含まない） */
-export async function fetchWeather(location: LocationInfo): Promise<RawDayData[]> {
+/** Open-Meteo から生気象データ（日次）と現在天気を取得する */
+export async function fetchWeather(
+  location: LocationInfo,
+): Promise<{ daily: RawDayData[]; current: CurrentWeather }> {
   const params = new URLSearchParams({
     latitude: location.latitude.toString(),
     longitude: location.longitude.toString(),
+    current: [
+      'temperature_2m',
+      'relative_humidity_2m',
+      'weather_code',
+      'wind_speed_10m',
+      'precipitation',
+      'is_day',
+    ].join(','),
     daily: [
       'temperature_2m_max',
       'temperature_2m_min',
@@ -33,17 +52,27 @@ export async function fetchWeather(location: LocationInfo): Promise<RawDayData[]
   if (!res.ok) throw new Error('天気データの取得に失敗しました');
 
   const data: OpenMeteoResponse = await res.json();
-  const { daily } = data;
+  const { daily, current } = data;
 
-  return daily.time.map((date, i) => ({
-    date,
-    tempMax: daily.temperature_2m_max[i],
-    tempMin: daily.temperature_2m_min[i],
-    humidity: daily.relative_humidity_2m_mean[i],
-    precipProb: daily.precipitation_probability_max[i],
-    windspeed: daily.windspeed_10m_max[i],
-    weatherCode: daily.weathercode[i],
-  }));
+  return {
+    daily: daily.time.map((date, i) => ({
+      date,
+      tempMax: daily.temperature_2m_max[i],
+      tempMin: daily.temperature_2m_min[i],
+      humidity: daily.relative_humidity_2m_mean[i],
+      precipProb: daily.precipitation_probability_max[i],
+      windspeed: daily.windspeed_10m_max[i],
+      weatherCode: daily.weathercode[i],
+    })),
+    current: {
+      temperature: Math.round(current.temperature_2m),
+      humidity: Math.round(current.relative_humidity_2m),
+      weatherCode: current.weather_code,
+      windspeed: Math.round(current.wind_speed_10m),
+      precipitation: current.precipitation,
+      isDay: current.is_day === 1,
+    },
+  };
 }
 
 /** 生気象データ + 塗料種別 → スコア付き予報リストに変換する */
@@ -206,6 +235,44 @@ function scoreToLabel(score: number): DayForecast['scoreLabel'] {
   if (score >= 60) return 'good';
   if (score >= 40) return 'fair';
   return 'poor';
+}
+
+/** 現在の天気データからリアルタイムの塗装スコアを計算する */
+export function calcCurrentScore(
+  current: CurrentWeather,
+  paintType: PaintType,
+): { score: number; scoreLabel: DayForecast['scoreLabel'] } {
+  // currentに降水確率データがないため weatherCode と precipitation から推定する
+  let precipProb: number;
+  if (current.precipitation > 0) {
+    precipProb = 85;
+  } else if (current.weatherCode >= 95) {
+    precipProb = 90;
+  } else if (current.weatherCode >= 80) {
+    precipProb = 70;
+  } else if (current.weatherCode >= 61) {
+    precipProb = 80;
+  } else if (current.weatherCode >= 51) {
+    precipProb = 50;
+  } else if (current.weatherCode >= 45) {
+    precipProb = 15;
+  } else if (current.weatherCode <= 3) {
+    precipProb = 0;
+  } else {
+    precipProb = 10;
+  }
+
+  const synthetic: RawDayData = {
+    date: '',
+    tempMax: current.temperature,
+    tempMin: current.temperature,
+    humidity: current.humidity,
+    precipProb,
+    windspeed: current.windspeed,
+    weatherCode: current.weatherCode,
+  };
+  const { score } = calcPaintingScore(synthetic, paintType);
+  return { score, scoreLabel: scoreToLabel(score) };
 }
 
 /** スコアから塗装失敗率(%)を算出する。高スコアほど低い失敗率になる非線形マッピング */
