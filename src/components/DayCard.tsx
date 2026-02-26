@@ -58,9 +58,9 @@ export function DayCard({ forecast, isToday }: { forecast: DayForecast; isToday:
           {/* 気象データ */}
           <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-sm text-gray-700">
             <span>🌡️ {forecast.temperatureMin}〜{forecast.temperatureMax}°C</span>
-            <span>💧 {forecast.humidity}%</span>
-            <span>🌂 {forecast.precipitationProbabilityMax}%</span>
-            <span>💨 {forecast.windspeedMax}km/h</span>
+            <span>💧 湿度 {forecast.humidity}%</span>
+            <span>🌂 降水確率 {forecast.precipitationProbabilityMax}%</span>
+            <span>💨 風速 {forecast.windspeedMax}km/h</span>
           </div>
 
           {/* スコア */}

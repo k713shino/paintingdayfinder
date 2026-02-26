@@ -317,9 +317,15 @@ export default function HomePage() {
                         </p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
-                        <p className="text-[11px] text-gray-400 font-bold">失敗率</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-0.5">塗装スコア</p>
                         <p className={`text-4xl font-bold leading-none ${heroConf.labelColor}`}>
-                          {calcFailureRate(todayForecast.paintingScore)}%
+                          {todayForecast.paintingScore}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-1.5">
+                          失敗リスク:{' '}
+                          <span className={`font-bold text-sm ${heroConf.labelColor}`}>
+                            {calcFailureRate(todayForecast.paintingScore)}%
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -396,8 +402,12 @@ export default function HomePage() {
                         <p className="text-xs text-gray-400 mb-1">
                           {d.getMonth() + 1}/{d.getDate()}（{dayLabel[0]}）
                         </p>
-                        <p className={`text-3xl font-bold ${colorMap.score}`}>{day.paintingScore}</p>
-                        <p className="text-[11px] text-gray-400 mt-0.5">失敗率 {calcFailureRate(day.paintingScore)}%</p>
+                        <p className="text-[10px] text-gray-400 mb-0.5">塗装スコア</p>
+                        <p className={`text-3xl font-bold leading-none ${colorMap.score}`}>{day.paintingScore}</p>
+                        <p className="text-[11px] text-gray-500 mt-1.5">
+                          失敗リスク:{' '}
+                          <span className={`font-bold ${colorMap.score}`}>{calcFailureRate(day.paintingScore)}%</span>
+                        </p>
                         <p className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mt-1.5 ${colorMap.badge}`}>
                           {verdict.label}
                         </p>
