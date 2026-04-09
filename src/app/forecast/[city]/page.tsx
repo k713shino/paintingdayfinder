@@ -7,13 +7,10 @@ import { DayCard } from '@/components/DayCard';
 import type { PaintType } from '@/types';
 
 export const revalidate = 1800; // 30分キャッシュ
+export const dynamicParams = true; // 未生成のパスはオンデマンドで生成
 
 interface Props {
   params: Promise<{ city: string }>;
-}
-
-export async function generateStaticParams() {
-  return CITIES.map((c) => ({ city: c.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
