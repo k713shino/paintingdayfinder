@@ -1,5 +1,8 @@
 export type PaintType = 'lacquer' | 'waterbase' | 'enamel';
 
+/** 作業環境：室内（エアブラシ）か屋外（缶スプレー等）か */
+export type WorkEnvironment = 'indoor' | 'outdoor';
+
 export interface DayForecast {
   date: string; // YYYY-MM-DD
   temperatureMax: number;
@@ -11,6 +14,17 @@ export interface DayForecast {
   paintingScore: number; // 0-100
   scoreLabel: 'excellent' | 'good' | 'fair' | 'poor';
   reasons: string[];
+  bestPeriod?: { startHour: number; endHour: number; score: number };
+}
+
+/** 1時間ぶんの生気象データ */
+export interface RawHourlySlot {
+  hour: number; // 0-23
+  temp: number;
+  humidity: number;
+  precipProb: number;
+  windspeed: number;
+  weatherCode: number;
 }
 
 export interface LocationInfo {

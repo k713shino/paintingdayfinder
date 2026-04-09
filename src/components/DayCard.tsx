@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import type { DayForecast } from '../types';
 import { ScoreBadge } from './ScoreBadge';
@@ -32,7 +34,7 @@ export function DayCard({ forecast, isToday }: { forecast: DayForecast; isToday:
         type="button"
         className="w-full text-left p-4"
         onClick={() => setExpanded(!expanded)}
-        aria-expanded={String(expanded) as 'true' | 'false'}
+        aria-expanded={expanded}
       >
         <div className="flex items-center gap-3">
           {/* 日付 */}
@@ -76,6 +78,20 @@ export function DayCard({ forecast, isToday }: { forecast: DayForecast; isToday:
       {/* 詳細 */}
       {expanded && (
         <div className="px-4 pb-4 pt-1 border-t border-gray-100">
+          {forecast.bestPeriod && (
+            <div className="mb-3 flex items-center gap-2 bg-indigo-50 rounded-xl px-3 py-2">
+              <span className="text-base">⏰</span>
+              <div>
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">最適時間帯</p>
+                <p className="text-sm font-semibold text-indigo-800">
+                  {forecast.bestPeriod.startHour}時〜{forecast.bestPeriod.endHour}時
+                  <span className="ml-2 text-xs font-normal text-indigo-500">
+                    （スコア {forecast.bestPeriod.score}）
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
           <p className="text-xs font-semibold text-gray-500 mb-2">塗装条件の詳細</p>
           <ul className="space-y-1">
             {forecast.reasons.map((r, i) => (

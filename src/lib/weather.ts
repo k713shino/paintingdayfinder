@@ -1,4 +1,4 @@
-import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData } from '../types';
+import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData, RawHourlySlot, WorkEnvironment } from '../types';
 
 interface OpenMeteoResponse {
   current: {
@@ -19,12 +19,20 @@ interface OpenMeteoResponse {
     windspeed_10m_max: number[];
     weathercode: number[];
   };
+  hourly: {
+    time: string[];
+    temperature_2m: number[];
+    relative_humidity_2m: number[];
+    precipitation_probability: number[];
+    windspeed_10m: number[];
+    weathercode: number[];
+  };
 }
 
 /** Open-Meteo から生気象データ（日次）と現在天気を取得する */
 export async function fetchWeather(
   location: LocationInfo,
-): Promise<{ daily: RawDayData[]; current: CurrentWeather }> {
+): Promise<{ daily: RawDayData[]; current: CurrentWeather; hourlyByDate: Record<string, RawHourlySlot[]> }> {
   const params = new URLSearchParams({
     latitude: location.latitude.toString(),
     longitude: location.longitude.toString(),
@@ -44,6 +52,13 @@ export async function fetchWeather(
       'windspeed_10m_max',
       'weathercode',
     ].join(','),
+    hourly: [
+      'temperature_2m',
+      'relative_humidity_2m',
+      'precipitation_probability',
+      'windspeed_10m',
+      'weathercode',
+    ].join(','),
     timezone: 'auto',
     forecast_days: '7',
   });
@@ -52,7 +67,25 @@ export async function fetchWeather(
   if (!res.ok) throw new Error('天気データの取得に失敗しました');
 
   const data: OpenMeteoResponse = await res.json();
-  const { daily, current } = data;
+  const { daily, current, hourly } = data;
+
+  // hourly データを日付ごとにグループ化（6〜21時のみ）
+  const hourlyByDate: Record<string, RawHourlySlot[]> = {};
+  for (let i = 0; i < hourly.time.length; i++) {
+    const timeStr = hourly.time[i]; // "YYYY-MM-DDTHH:00"
+    const date = timeStr.substring(0, 10);
+    const hour = parseInt(timeStr.substring(11, 13), 10);
+    if (hour < 6 || hour > 21) continue;
+    if (!hourlyByDate[date]) hourlyByDate[date] = [];
+    hourlyByDate[date].push({
+      hour,
+      temp: hourly.temperature_2m[i],
+      humidity: hourly.relative_humidity_2m[i],
+      precipProb: hourly.precipitation_probability[i],
+      windspeed: hourly.windspeed_10m[i],
+      weatherCode: hourly.weathercode[i],
+    });
+  }
 
   return {
     daily: daily.time.map((date, i) => ({
@@ -72,13 +105,20 @@ export async function fetchWeather(
       precipitation: current.precipitation,
       isDay: current.is_day === 1,
     },
+    hourlyByDate,
   };
 }
 
 /** 生気象データ + 塗料種別 → スコア付き予報リストに変換する */
-export function calcForecasts(rawData: RawDayData[], paintType: PaintType): DayForecast[] {
+export function calcForecasts(
+  rawData: RawDayData[],
+  paintType: PaintType,
+  hourlyByDate?: Record<string, RawHourlySlot[]>,
+  environment: WorkEnvironment = 'outdoor',
+): DayForecast[] {
   return rawData.map((d) => {
-    const { score, reasons } = calcPaintingScore(d, paintType);
+    const { score, reasons } = calcPaintingScore(d, paintType, environment);
+    const bestPeriod = hourlyByDate ? calcBestPeriod(hourlyByDate[d.date] ?? [], paintType, environment) : undefined;
     return {
       date: d.date,
       temperatureMax: d.tempMax,
@@ -90,8 +130,41 @@ export function calcForecasts(rawData: RawDayData[], paintType: PaintType): DayF
       paintingScore: score,
       scoreLabel: scoreToLabel(score),
       reasons,
+      bestPeriod,
     };
   });
+}
+
+/** 1日分のhourlyスロットから最適な3時間ウィンドウを算出する */
+function calcBestPeriod(
+  slots: RawHourlySlot[],
+  paintType: PaintType,
+  environment: WorkEnvironment = 'outdoor',
+): DayForecast['bestPeriod'] {
+  if (slots.length < 3) return undefined;
+
+  let bestScore = -1;
+  let bestStart = slots[0].hour;
+
+  for (let i = 0; i <= slots.length - 3; i++) {
+    const window = slots.slice(i, i + 3);
+    const avg =
+      window.reduce((sum, s) => {
+        const raw: RawDayData = {
+          date: '', tempMax: s.temp, tempMin: s.temp,
+          humidity: s.humidity, precipProb: s.precipProb,
+          windspeed: s.windspeed, weatherCode: s.weatherCode,
+        };
+        return sum + calcPaintingScore(raw, paintType, environment).score;
+      }, 0) / 3;
+
+    if (avg > bestScore) {
+      bestScore = avg;
+      bestStart = window[0].hour;
+    }
+  }
+
+  return { startHour: bestStart, endHour: bestStart + 3, score: Math.round(bestScore) };
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +235,7 @@ function calcHumidityScore(
 function calcPaintingScore(
   input: RawDayData,
   paintType: PaintType,
+  environment: WorkEnvironment = 'outdoor',
 ): { score: number; reasons: string[] } {
   const { tempMax, tempMin, humidity, precipProb, windspeed, weatherCode } = input;
   let score = 100;
@@ -190,41 +264,56 @@ function calcPaintingScore(
     reasons.push(`気温は良好（最高${tempMax}°C）`);
   }
 
-  // 降水確率
-  if (precipProb > 70) {
-    score -= 30;
-    reasons.push(`降水確率が高い（${precipProb}%）。屋外作業は不向きです`);
-  } else if (precipProb > 40) {
-    score -= 15;
-    reasons.push(`降水確率がやや高め（${precipProb}%）`);
-  } else if (precipProb > 20) {
-    score -= 5;
-    reasons.push(`降水確率は低め（${precipProb}%）`);
+  // 降水確率（室内は湿度への間接影響のみ・ペナルティ30%）
+  if (environment === 'indoor') {
+    if (precipProb > 70) {
+      score -= 9;
+      reasons.push(`降水確率が高い（${precipProb}%）。室内作業への直接影響は少ないですが湿度に注意`);
+    } else {
+      reasons.push(`降水確率 ${precipProb}%（室内作業のため影響小）`);
+    }
   } else {
-    reasons.push(`降水確率は良好（${precipProb}%）`);
+    if (precipProb > 70) {
+      score -= 30;
+      reasons.push(`降水確率が高い（${precipProb}%）。屋外作業は不向きです`);
+    } else if (precipProb > 40) {
+      score -= 15;
+      reasons.push(`降水確率がやや高め（${precipProb}%）`);
+    } else if (precipProb > 20) {
+      score -= 5;
+      reasons.push(`降水確率は低め（${precipProb}%）`);
+    } else {
+      reasons.push(`降水確率は良好（${precipProb}%）`);
+    }
   }
 
-  // 風速
-  if (windspeed > 30) {
-    score -= 20;
-    reasons.push(`風が強い（${windspeed}km/h）。スプレー・エアブラシ作業に影響があります`);
-  } else if (windspeed > 20) {
-    score -= 10;
-    reasons.push(`風がやや強め（${windspeed}km/h）`);
+  // 風速（室内は無効）
+  if (environment === 'indoor') {
+    reasons.push(`風速 ${windspeed}km/h（室内作業のため影響なし）`);
   } else {
-    reasons.push(`風は穏やか（${windspeed}km/h）`);
+    if (windspeed > 30) {
+      score -= 20;
+      reasons.push(`風が強い（${windspeed}km/h）。スプレー・エアブラシ作業に影響があります`);
+    } else if (windspeed > 20) {
+      score -= 10;
+      reasons.push(`風がやや強め（${windspeed}km/h）`);
+    } else {
+      reasons.push(`風は穏やか（${windspeed}km/h）`);
+    }
   }
 
-  // 天気コード補正
-  if (weatherCode >= 95) {
-    score -= 15;
-    reasons.push('雷雨の可能性があります');
-  } else if (weatherCode >= 61 && weatherCode <= 67) {
-    score -= 10;
-    reasons.push('雨の予報です');
-  } else if (weatherCode >= 71 && weatherCode <= 77) {
-    score -= 15;
-    reasons.push('雪の予報です');
+  // 天気コード補正（室内は雷雨・降雪も影響なし）
+  if (environment === 'outdoor') {
+    if (weatherCode >= 95) {
+      score -= 15;
+      reasons.push('雷雨の可能性があります');
+    } else if (weatherCode >= 61 && weatherCode <= 67) {
+      score -= 10;
+      reasons.push('雨の予報です');
+    } else if (weatherCode >= 71 && weatherCode <= 77) {
+      score -= 15;
+      reasons.push('雪の予報です');
+    }
   }
 
   return { score: Math.max(0, Math.min(100, score)), reasons };
@@ -241,6 +330,7 @@ function scoreToLabel(score: number): DayForecast['scoreLabel'] {
 export function calcCurrentScore(
   current: CurrentWeather,
   paintType: PaintType,
+  environment: WorkEnvironment = 'outdoor',
 ): { score: number; scoreLabel: DayForecast['scoreLabel'] } {
   // currentに降水確率データがないため weatherCode と precipitation から推定する
   let precipProb: number;
@@ -271,7 +361,7 @@ export function calcCurrentScore(
     windspeed: current.windspeed,
     weatherCode: current.weatherCode,
   };
-  const { score } = calcPaintingScore(synthetic, paintType);
+  const { score } = calcPaintingScore(synthetic, paintType, environment);
   return { score, scoreLabel: scoreToLabel(score) };
 }
 

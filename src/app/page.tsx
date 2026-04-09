@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData } from '@/types';
+import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData, RawHourlySlot, WorkEnvironment } from '@/types';
 import { fetchWeather, reverseGeocode, calcForecasts, calcFailureRate, calcCurrentScore } from '@/lib/weather';
+import { CITIES, CITY_REGIONS } from '@/lib/cities';
 import { DayCard } from '@/components/DayCard';
 import { AffiliateItems } from '@/components/AffiliateItems';
+import { RecordModal } from '@/components/RecordModal';
 import Link from 'next/link';
 
 type Status = 'idle' | 'locating' | 'loading' | 'success' | 'error';
@@ -16,33 +18,38 @@ const PAINT_TYPE_OPTIONS: { type: PaintType; label: string; description: string 
   { type: 'enamel',    label: 'エナメル', description: '中間的な湿度耐性' },
 ];
 
-type City = { name: string; lat: number; lon: number; region: string };
+/** 現在のスコアをSNSシェアまたはURLコピーする */
+async function shareScore(
+  cityName: string | undefined,
+  score: number,
+  label: string,
+  setCopied: (v: boolean) => void,
+) {
+  const labelMap: Record<string, string> = { excellent: '最適', good: '良好', fair: 'やや注意', poor: '不向き' };
+  const text = `${cityName ? `【${cityName}】` : ''}今日の塗装スコアは ${score}点（${labelMap[label] ?? label}）！ #塗装日和`;
+  const url = typeof window !== 'undefined' ? window.location.href : 'https://paintingdayfinder.vercel.app/';
+  if (typeof navigator !== 'undefined' && navigator.share) {
+    await navigator.share({ title: '塗装日和', text, url }).catch(() => {});
+  } else {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+}
 
-const MAJOR_CITIES: City[] = [
-  { name: '札幌',     lat: 43.0642, lon: 141.3469, region: '北海道' },
-  { name: '仙台',     lat: 38.2688, lon: 140.8721, region: '東北' },
-  { name: '東京',     lat: 35.6895, lon: 139.6917, region: '関東' },
-  { name: '横浜',     lat: 35.4437, lon: 139.6380, region: '関東' },
-  { name: 'さいたま', lat: 35.8617, lon: 139.6456, region: '関東' },
-  { name: '千葉',     lat: 35.6073, lon: 140.1063, region: '関東' },
-  { name: '新潟',     lat: 37.9026, lon: 139.0232, region: '中部' },
-  { name: '金沢',     lat: 36.5613, lon: 136.6562, region: '中部' },
-  { name: '静岡',     lat: 34.9756, lon: 138.3828, region: '中部' },
-  { name: '名古屋',   lat: 35.1815, lon: 136.9066, region: '中部' },
-  { name: '大阪',     lat: 34.6937, lon: 135.5022, region: '近畿' },
-  { name: '京都',     lat: 35.0116, lon: 135.7681, region: '近畿' },
-  { name: '神戸',     lat: 34.6913, lon: 135.1830, region: '近畿' },
-  { name: '広島',     lat: 34.3853, lon: 132.4553, region: '中国' },
-  { name: '岡山',     lat: 34.6618, lon: 133.9350, region: '中国' },
-  { name: '高松',     lat: 34.3401, lon: 134.0434, region: '四国' },
-  { name: '高知',     lat: 33.5597, lon: 133.5311, region: '四国' },
-  { name: '福岡',     lat: 33.5902, lon: 130.4017, region: '九州' },
-  { name: '熊本',     lat: 32.7898, lon: 130.7417, region: '九州' },
-  { name: '鹿児島',   lat: 31.5966, lon: 130.5571, region: '九州' },
-  { name: '那覇',     lat: 26.2124, lon: 127.6809, region: '沖縄' },
-];
-
-const CITY_REGIONS = [...new Set(MAJOR_CITIES.map((c) => c.region))];
+/** スコアを下げている主因を reasons から読み取り、失敗率の根拠として1行で返す */
+function getFailureRateCause(forecast: DayForecast): string {
+  const r = forecast.reasons;
+  const hasHumidity = r.some((s) => s.includes('湿度が高') || s.includes('白化'));
+  const hasTemp = r.some((s) => s.includes('気温が低') || s.includes('気温が高'));
+  const hasRain = r.some((s) => s.includes('降水確率が高') || s.includes('雨') || s.includes('雷'));
+  const causes: string[] = [];
+  if (hasHumidity) causes.push('高湿度');
+  if (hasTemp) causes.push('気温');
+  if (hasRain) causes.push('降水');
+  if (causes.length === 0) return '※ 気象条件から算出した参考値';
+  return `※ ${causes.join('・')}の影響による推定値`;
+}
 
 export default function HomePage() {
   const [status, setStatus] = useState<Status>('idle');
@@ -50,15 +57,34 @@ export default function HomePage() {
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [forecasts, setForecasts] = useState<DayForecast[]>([]);
   const [paintType, setPaintType] = useState<PaintType>('lacquer');
+  const [workEnvironment, setWorkEnvironment] = useState<WorkEnvironment>('indoor');
+  const [copied, setCopied] = useState(false);
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+  const [mounted, setMounted] = useState(false);
   const [rawWeatherData, setRawWeatherData] = useState<RawDayData[] | null>(null);
+  const [hourlyByDate, setHourlyByDate] = useState<Record<string, RawHourlySlot[]> | null>(null);
   const [currentWeather, setCurrentWeather] = useState<CurrentWeather | null>(null);
-  const [locationMode, setLocationMode] = useState<LocationMode>('gps');
-  const [selectedCityName, setSelectedCityName] = useState<string>(MAJOR_CITIES[0].name);
+  const [locationMode, setLocationMode] = useState<LocationMode>(() => {
+    if (typeof window === 'undefined') return 'gps';
+    return (localStorage.getItem('locationMode') as LocationMode) ?? 'gps';
+  });
+  const [selectedCityName, setSelectedCityName] = useState<string>(() => {
+    if (typeof window === 'undefined') return CITIES[0].name;
+    return localStorage.getItem('selectedCityName') ?? CITIES[0].name;
+  });
 
   function handlePaintTypeChange(newType: PaintType) {
     setPaintType(newType);
     if (rawWeatherData) {
-      setForecasts(calcForecasts(rawWeatherData, newType));
+      setForecasts(calcForecasts(rawWeatherData, newType, hourlyByDate ?? undefined, workEnvironment));
+    }
+  }
+
+  function handleEnvironmentChange(env: WorkEnvironment) {
+    setWorkEnvironment(env);
+    if (rawWeatherData) {
+      setForecasts(calcForecasts(rawWeatherData, paintType, hourlyByDate ?? undefined, env));
     }
   }
 
@@ -88,7 +114,7 @@ export default function HomePage() {
       const city = await reverseGeocode(lat, lon);
       loc = { latitude: lat, longitude: lon, city };
     } else {
-      const city = MAJOR_CITIES.find((c) => c.name === cityName)!;
+      const city = CITIES.find((c) => c.name === cityName)!;
       loc = { latitude: city.lat, longitude: city.lon, city: city.name };
       setStatus('loading');
     }
@@ -96,10 +122,11 @@ export default function HomePage() {
     setLocation(loc);
 
     try {
-      const { daily, current } = await fetchWeather(loc);
+      const { daily, current, hourlyByDate: hbd } = await fetchWeather(loc);
       setRawWeatherData(daily);
+      setHourlyByDate(hbd);
       setCurrentWeather(current);
-      setForecasts(calcForecasts(daily, paintType));
+      setForecasts(calcForecasts(daily, paintType, hbd, workEnvironment));
       setStatus('success');
     } catch (e) {
       setStatus('error');
@@ -109,6 +136,7 @@ export default function HomePage() {
 
   function handleLocationModeChange(mode: LocationMode) {
     setLocationMode(mode);
+    localStorage.setItem('locationMode', mode);
     if (mode === 'gps') {
       load('gps');
     } else {
@@ -118,13 +146,40 @@ export default function HomePage() {
 
   function handleCityChange(cityName: string) {
     setSelectedCityName(cityName);
+    localStorage.setItem('selectedCityName', cityName);
     load('city', cityName);
   }
 
   useEffect(() => {
+    setMounted(true);
     load();
+    if (typeof Notification !== 'undefined') {
+      setNotifPerm(Notification.permission);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 翌日スコアが高い場合、1日1回だけ通知する
+  useEffect(() => {
+    if (notifPerm !== 'granted' || forecasts.length < 2) return;
+    const lastDate = localStorage.getItem('lastNotifDate');
+    if (lastDate === today) return;
+    const tomorrow = forecasts[1];
+    if (tomorrow && tomorrow.paintingScore >= 75) {
+      new Notification('🎨 塗装日和', {
+        body: `明日（${tomorrow.date.slice(5).replace('-', '/')}）の塗装スコアは${tomorrow.paintingScore}点！塗装チャンスです`,
+        icon: '/icon-192x192.png',
+      });
+      localStorage.setItem('lastNotifDate', today);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forecasts, notifPerm]);
+
+  async function requestNotification() {
+    if (typeof Notification === 'undefined') return;
+    const perm = await Notification.requestPermission();
+    setNotifPerm(perm);
+  }
 
   const _now = new Date();
   const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
@@ -183,6 +238,36 @@ export default function HomePage() {
           <div className="border-t border-gray-100 mx-4" />
 
           <div className="p-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">作業環境</p>
+            <div className="flex gap-2">
+              {([
+                { env: 'indoor',  label: '🏠 室内', desc: '風・雨の影響なし。湿度・気温を重視' },
+                { env: 'outdoor', label: '🌤️ 屋外', desc: '風・雨・降水確率もスコアに影響' },
+              ] as const).map(({ env, label }) => (
+                <button
+                  key={env}
+                  type="button"
+                  onClick={() => handleEnvironmentChange(env)}
+                  className={`flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border ${
+                    workEnvironment === env
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              {workEnvironment === 'indoor'
+                ? '🏠 室内作業：風・雨の影響なし。湿度・気温を重視'
+                : '🌤️ 屋外作業：風・雨・降水確率もスコアに影響'}
+            </p>
+          </div>
+
+          <div className="border-t border-gray-100 mx-4" />
+
+          <div className="p-4">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">場所</p>
             <div className="flex gap-2">
               <button
@@ -218,7 +303,7 @@ export default function HomePage() {
               >
                 {CITY_REGIONS.map((region) => (
                   <optgroup key={region} label={region}>
-                    {MAJOR_CITIES.filter((c) => c.region === region).map((c) => (
+                    {CITIES.filter((c) => c.region === region).map((c) => (
                       <option key={c.name} value={c.name}>
                         {c.name}
                       </option>
@@ -243,6 +328,30 @@ export default function HomePage() {
               </p>
             )}
           </div>
+
+          {mounted && notifPerm !== 'granted' && (
+            <>
+              <div className="border-t border-gray-100 mx-4" />
+              <div className="px-4 py-3 flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  明日のスコアが高いときに通知を受け取る
+                </p>
+                <button
+                  type="button"
+                  onClick={requestNotification}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-full px-3 py-1 transition-colors"
+                >
+                  🔔 通知を有効化
+                </button>
+              </div>
+            </>
+          )}
+          {mounted && notifPerm === 'granted' && (
+            <>
+              <div className="border-t border-gray-100 mx-4" />
+              <p className="px-4 py-3 text-xs text-green-600">🔔 通知が有効です（翌日スコア75以上で通知）</p>
+            </>
+          )}
         </div>
 
         {/* ローディング */}
@@ -295,7 +404,7 @@ export default function HomePage() {
               const heroItems = getHeroItems(todayForecast);
               const d = new Date(todayForecast.date);
               const dayName = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-              const currentScore = currentWeather ? calcCurrentScore(currentWeather, paintType) : null;
+              const currentScore = currentWeather ? calcCurrentScore(currentWeather, paintType, workEnvironment) : null;
               const currentScoreBadge = currentScore ? ({
                 excellent: 'bg-green-100 text-green-700',
                 good:      'bg-blue-100 text-blue-700',
@@ -308,10 +417,19 @@ export default function HomePage() {
                   <div className="p-5">
                     {/* 判定ヘッド */}
                     <div className="flex items-start justify-between mb-5">
-                      <div>
-                        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wide">
-                          今日の塗装判定・{d.getMonth() + 1}/{d.getDate()}（{dayName}）
-                        </p>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wide">
+                            今日の塗装判定・{d.getMonth() + 1}/{d.getDate()}（{dayName}）
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => shareScore(location?.city, todayForecast.paintingScore, todayForecast.scoreLabel, setCopied)}
+                            className="text-[10px] text-gray-400 hover:text-indigo-500 transition-colors px-1.5 py-0.5 rounded border border-gray-200 hover:border-indigo-300"
+                          >
+                            {copied ? '✅ コピー済' : '🔗 シェア'}
+                          </button>
+                        </div>
                         <p className={`text-2xl font-bold mt-1 ${heroConf.labelColor}`}>
                           {heroConf.dot} 今日の塗装：{heroConf.label}
                         </p>
@@ -326,6 +444,9 @@ export default function HomePage() {
                           <span className={`font-bold text-sm ${heroConf.labelColor}`}>
                             {calcFailureRate(todayForecast.paintingScore)}%
                           </span>
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
+                          {getFailureRateCause(todayForecast)}
                         </p>
                       </div>
                     </div>
@@ -368,10 +489,36 @@ export default function HomePage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* 記録ボタン */}
+                    <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setShowRecordModal(true)}
+                        className="text-xs text-indigo-500 hover:text-indigo-700 font-semibold"
+                      >
+                        📝 今日の塗装を記録する
+                      </button>
+                      <Link href="/records" className="ml-4 text-xs text-gray-400 hover:text-gray-600">
+                        記録一覧 →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
             })()}
+
+            {/* 塗装記録モーダル */}
+            {showRecordModal && todayForecast && (
+              <RecordModal
+                date={today}
+                score={todayForecast.paintingScore}
+                paintType={paintType}
+                environment={workEnvironment}
+                onClose={() => setShowRecordModal(false)}
+                onSaved={() => setShowRecordModal(false)}
+              />
+            )}
 
             {/* ② 週末モデリング予報（習慣化装置） */}
             {(saturday || sunday) && (
