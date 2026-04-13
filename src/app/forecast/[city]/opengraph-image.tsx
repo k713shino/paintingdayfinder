@@ -47,7 +47,8 @@ export default async function Image({ params }: { params: Promise<{ city: string
 
   const label = LABEL_MAP[scoreLabel];
   const failureRate = calcFailureRate(score);
-  const dateLabel = `${now.getMonth() + 1}/${now.getDate()}`;
+  const [, mm, dd] = today.split('-');
+  const dateLabel = `${Number(mm)}/${Number(dd)}`;
 
   return new ImageResponse(
     <div
