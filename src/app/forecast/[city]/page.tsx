@@ -20,10 +20,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!city) return {};
   return {
     title: `${city.name}の塗装日和 | 模型・ホビー塗装に最適な日`,
-    description: `${city.name}の天気予報から模型塗装に最適な7日間を自動判定。湿度・気温・風速・降水確率を総合スコア化して表示します。`,
+    description: `${city.name}の天気予報から模型塗装に最適な14日間を自動判定。湿度・気温・風速・降水確率を総合スコア化して表示します。`,
     openGraph: {
       title: `${city.name}の塗装日和`,
-      description: `${city.name}の塗装スコア7日間予報`,
+      description: `${city.name}の塗装スコア14日間予報`,
     },
   };
 }
@@ -90,7 +90,7 @@ export default async function CityForecastPage({ params }: Props) {
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">🎨 {city.name}の塗装日和</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {city.region} · 7日間の模型塗装スコア予報
+            {city.region} · 14日間の模型塗装スコア予報
           </p>
         </header>
 
@@ -136,9 +136,9 @@ export default async function CityForecastPage({ params }: Props) {
           </div>
         )}
 
-        {/* 7日間リスト（塗料切り替え可） */}
+        {/* 14日間リスト（塗料切り替え可） */}
         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">
-          7日間の塗装スコア
+          14日間の塗装スコア
         </p>
         <div className="mb-6">
           <ForecastList forecastsByType={forecastsByType} today={today} />

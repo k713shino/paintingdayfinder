@@ -60,7 +60,7 @@ export async function fetchWeather(
       'weathercode',
     ].join(','),
     timezone: 'auto',
-    forecast_days: '7',
+    forecast_days: '14',
   });
 
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);

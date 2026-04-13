@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { DayForecast, PaintType } from '@/types';
 import { DayCard } from './DayCard';
+import { ScoreChart } from './ScoreChart';
 
 const PAINT_TYPE_OPTIONS: { type: PaintType; label: string }[] = [
   { type: 'lacquer',   label: 'ラッカー' },
@@ -39,7 +40,10 @@ export function ForecastList({ forecastsByType, today }: Props) {
         ))}
       </div>
 
-      {/* 7日間リスト */}
+      {/* スコアグラフ */}
+      <ScoreChart forecasts={forecasts} />
+
+      {/* 14日間リスト */}
       <div className="space-y-3">
         {forecasts.map((f) => (
           <DayCard key={f.date} forecast={f} isToday={f.date === today} />

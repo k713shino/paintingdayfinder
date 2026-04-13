@@ -6,6 +6,7 @@ import { fetchWeather, reverseGeocode, calcForecasts, calcFailureRate, calcCurre
 import { CITIES, CITY_REGIONS } from '@/lib/cities';
 import { getTodayString } from '@/lib/utils';
 import { DayCard } from '@/components/DayCard';
+import { ScoreChart } from '@/components/ScoreChart';
 import { AffiliateItems } from '@/components/AffiliateItems';
 import { RecordModal } from '@/components/RecordModal';
 import Link from 'next/link';
@@ -606,9 +607,10 @@ export default function HomePage() {
               </>
             )}
 
-            {/* ④ 7日間の詳細リスト */}
+            {/* ④ スコアグラフ + 詳細リスト */}
+            <ScoreChart forecasts={forecasts} />
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">
-              7日間の塗装スコア
+              14日間の塗装スコア
             </p>
             <main>
               <div className="flex gap-3 mb-3 text-xs text-gray-500 flex-wrap">

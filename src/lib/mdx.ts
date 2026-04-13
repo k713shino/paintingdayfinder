@@ -9,6 +9,7 @@ export interface ColumnMeta {
   title: string;
   description: string;
   date: string;
+  related: string[]; // 関連記事スラグ（最大3件）
 }
 
 export interface Column extends ColumnMeta {
@@ -29,6 +30,7 @@ export function getAllColumns(): ColumnMeta[] {
         title: data.title ?? '',
         description: data.description ?? '',
         date: data.date ?? '',
+        related: Array.isArray(data.related) ? data.related : [],
       };
     })
     .sort((a, b) => (a.date < b.date ? 1 : -1)); // 新しい順
@@ -45,6 +47,7 @@ export function getColumnBySlug(slug: string): Column | null {
     title: data.title ?? '',
     description: data.description ?? '',
     date: data.date ?? '',
+    related: Array.isArray(data.related) ? data.related : [],
     content,
   };
 }

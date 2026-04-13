@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import remarkGfm from 'remark-gfm';
-import { getAllSlugs, getColumnBySlug } from '@/lib/mdx';
+import { getAllColumns, getAllSlugs, getColumnBySlug } from '@/lib/mdx';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -34,6 +34,13 @@ export default async function ColumnPage({ params }: Props) {
   const col = getColumnBySlug(slug);
   if (!col) notFound();
 
+  // 関連記事のメタ情報を取得
+  const allColumns = getAllColumns();
+  const relatedColumns = col.related
+    .map((s) => allColumns.find((c) => c.slug === s))
+    .filter((c): c is NonNullable<typeof c> => c !== undefined)
+    .slice(0, 3);
+
   return (
     <div className="min-h-screen bg-linear-to-br from-sky-50 to-indigo-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
@@ -56,6 +63,31 @@ export default async function ColumnPage({ params }: Props) {
             <MDXRemote source={col.content} options={{ mdxOptions: { remarkPlugins: [remarkGfm] } }} />
           </div>
         </article>
+
+        {/* 関連記事 */}
+        {relatedColumns.length > 0 && (
+          <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">関連記事</p>
+            <div className="space-y-2">
+              {relatedColumns.map((related) => (
+                <Link
+                  key={related.slug}
+                  href={`/column/${related.slug}`}
+                  className="flex items-start gap-3 p-3 rounded-xl hover:bg-indigo-50 transition-colors group"
+                >
+                  <span className="text-lg leading-none mt-0.5">📄</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 group-hover:text-indigo-700 leading-snug line-clamp-2">
+                      {related.title}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{related.description}</p>
+                  </div>
+                  <span className="text-gray-300 group-hover:text-indigo-400 shrink-0 mt-1">›</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-center">
           <p className="text-sm font-semibold text-indigo-700 mb-1">今日の塗装スコアをチェック</p>
