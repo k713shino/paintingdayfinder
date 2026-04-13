@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { CITIES, getCityBySlug } from '@/lib/cities';
 import { fetchWeather, calcForecasts, calcFailureRate } from '@/lib/weather';
+import { DAY_NAMES, getTodayString } from '@/lib/utils';
 import { DayCard } from '@/components/DayCard';
 import type { PaintType } from '@/types';
 
@@ -33,7 +34,6 @@ const PAINT_TYPES: { type: PaintType; label: string }[] = [
   { type: 'enamel',    label: 'エナメル' },
 ];
 
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
 
 export default async function CityForecastPage({ params }: Props) {
   const { city: slug } = await params;
@@ -56,8 +56,7 @@ export default async function CityForecastPage({ params }: Props) {
     d.paintingScore > best.paintingScore ? d : best
   );
 
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = getTodayString();
 
   const scoreColor: Record<string, string> = {
     excellent: 'text-green-600',

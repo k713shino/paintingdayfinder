@@ -135,12 +135,14 @@ interface Props {
 }
 
 export function AffiliateItems({ score }: Props) {
-  if (score < 60) return null;
-
+  // score を seed にして順序を固定（純粋関数 = 再レンダー時も同じ結果）
   const displayed = useMemo(() => {
-    const shuffled = [...PRODUCTS].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, DISPLAY_COUNT);
-  }, []);
+    const seed = score % PRODUCTS.length;
+    const rotated = [...PRODUCTS.slice(seed), ...PRODUCTS.slice(0, seed)];
+    return rotated.slice(0, DISPLAY_COUNT);
+  }, [score]);
+
+  if (score < 60) return null;
 
   return (
     <section aria-label="おすすめ塗装グッズ" className="mt-5">

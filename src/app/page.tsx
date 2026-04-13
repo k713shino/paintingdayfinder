@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData, RawHourlySlot, WorkEnvironment } from '@/types';
 import { fetchWeather, reverseGeocode, calcForecasts, calcFailureRate, calcCurrentScore } from '@/lib/weather';
 import { CITIES, CITY_REGIONS } from '@/lib/cities';
+import { getTodayString } from '@/lib/utils';
 import { DayCard } from '@/components/DayCard';
 import { AffiliateItems } from '@/components/AffiliateItems';
 import { RecordModal } from '@/components/RecordModal';
@@ -181,8 +182,7 @@ export default function HomePage() {
     setNotifPerm(perm);
   }
 
-  const _now = new Date();
-  const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+  const today = getTodayString();
 
   const bestDay = forecasts.reduce<DayForecast | null>(
     (best, d) => (!best || d.paintingScore > best.paintingScore ? d : best),
@@ -670,11 +670,6 @@ export default function HomePage() {
 // ヘルパー関数
 // ---------------------------------------------------------------------------
 
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
-function formatDateJa(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getMonth() + 1}月${d.getDate()}日（${DAY_NAMES[d.getDay()]}）`;
-}
 
 /** ヒーローカード用クイック3項目（ラッカー・水性・トップコート） */
 function getHeroItems(
@@ -830,8 +825,6 @@ function getWeekendVerdict(
   return { label: '塗装は避けて' };
 }
 
-// formatDateJa は将来の拡張のために残す
-void formatDateJa;
 
 function wCodeToIcon(code: number): string {
   if (code === 0) return '☀️';

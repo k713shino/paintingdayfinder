@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+interface PaapiItem {
+  ASIN?: string;
+  ItemInfo?: { Title?: { DisplayValue?: string } };
+  Images?: { Primary?: { Medium?: { URL?: string } } };
+  Offers?: { Listings?: { Price?: { DisplayAmount?: string } }[] };
+}
+
 const ACCESS_KEY = process.env.PAAPI_ACCESS_KEY!;
 const SECRET_KEY = process.env.PAAPI_SECRET_KEY!;
 const PARTNER_TAG = process.env.PAAPI_PARTNER_TAG!;
@@ -96,7 +103,7 @@ export async function GET() {
     const data = await apiRes.json();
     const items = data.ItemsResult?.Items ?? [];
 
-    const products = items.map((item: any) => ({
+    const products = (items as PaapiItem[]).map((item) => ({
       asin: item.ASIN,
       title: item.ItemInfo?.Title?.DisplayValue ?? '',
       image: item.Images?.Primary?.Medium?.URL ?? '',

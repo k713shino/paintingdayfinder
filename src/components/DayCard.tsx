@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import type { DayForecast } from '../types';
+import type { DayForecast } from '@/types';
 import { ScoreBadge } from './ScoreBadge';
 import { WeatherIcon } from './WeatherIcon';
-
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
+import { DAY_NAMES } from '@/lib/utils';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -34,7 +33,7 @@ export function DayCard({ forecast, isToday }: { forecast: DayForecast; isToday:
         type="button"
         className="w-full text-left p-4"
         onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded}
+        aria-expanded={expanded ? 'true' : 'false'}
       >
         <div className="flex items-center gap-3">
           {/* 日付 */}

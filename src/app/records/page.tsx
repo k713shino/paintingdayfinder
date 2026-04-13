@@ -32,7 +32,6 @@ export default function RecordsPage() {
   }
 
   const successCount = records.filter((r) => r.result === 'success').length;
-  const failCount = records.filter((r) => r.result === 'failure').length;
   const avgScore = records.length > 0
     ? Math.round(records.reduce((s, r) => s + r.score, 0) / records.length)
     : 0;

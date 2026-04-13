@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { getCityBySlug } from '@/lib/cities';
 import { fetchWeather, calcForecasts, calcFailureRate } from '@/lib/weather';
+import { getTodayString } from '@/lib/utils';
 
 export const runtime = 'edge';
 export const alt = '塗装日和';
@@ -27,8 +28,7 @@ export default async function Image({ params }: { params: Promise<{ city: string
     );
   }
 
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = getTodayString();
 
   let score = 0;
   let scoreLabel: keyof typeof LABEL_MAP = 'fair';

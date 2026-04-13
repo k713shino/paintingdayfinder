@@ -1,5 +1,5 @@
-import type { DayForecast } from '../types';
-import { calcFailureRate } from '../lib/weather';
+import type { DayForecast } from '@/types';
+import { calcFailureRate } from '@/lib/weather';
 
 const config: Record<DayForecast['scoreLabel'], { bg: string; text: string; label: string }> = {
   excellent: { bg: 'bg-green-100 border-green-400', text: 'text-green-700', label: '最適' },

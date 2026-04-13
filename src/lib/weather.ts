@@ -1,4 +1,4 @@
-import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData, RawHourlySlot, WorkEnvironment } from '../types';
+import type { CurrentWeather, DayForecast, LocationInfo, PaintType, RawDayData, RawHourlySlot, WorkEnvironment } from '@/types';
 
 interface OpenMeteoResponse {
   current: {
@@ -376,7 +376,8 @@ export function calcFailureRate(score: number): number {
 export async function reverseGeocode(lat: number, lon: number): Promise<string> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ja`
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ja`,
+      { headers: { 'User-Agent': 'paintingdayfinder/1.0 (https://paintingdayfinder.vercel.app/)' } },
     );
     if (!res.ok) return '';
     const data = await res.json();
