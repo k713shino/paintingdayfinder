@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PaintType, WorkEnvironment } from '@/types';
 import { addRecord } from '@/lib/records';
 
@@ -31,6 +31,15 @@ export function RecordModal({ date, score, paintType, environment, onClose, onSa
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // ESC キーでモーダルを閉じる
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   async function handleSave() {
     setSaving(true);
     await addRecord({ date, paintType, environment, score, result, note });
@@ -40,14 +49,25 @@ export function RecordModal({ date, score, paintType, environment, onClose, onSa
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* オーバーレイ */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      {/* オーバーレイ（装飾用・クリックで閉じる） */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        aria-hidden="true"
+        onClick={onClose}
+      />
 
       {/* モーダル本体 */}
-      <div className="relative w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="record-modal-title"
+        className="relative w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-xl"
+      >
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
 
-        <h2 className="text-base font-bold text-gray-800 mb-1">📝 塗装を記録する</h2>
+        <h2 id="record-modal-title" className="text-base font-bold text-gray-800 mb-1">
+          📝 塗装を記録する
+        </h2>
         <p className="text-xs text-gray-400 mb-5">
           {date} · {PAINT_LABELS[paintType]} · {ENV_LABELS[environment]} · スコア {score}
         </p>
@@ -70,8 +90,11 @@ export function RecordModal({ date, score, paintType, environment, onClose, onSa
         </div>
 
         {/* メモ */}
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">メモ（任意）</p>
+        <label htmlFor="record-note" className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">
+          メモ（任意）
+        </label>
         <textarea
+          id="record-note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}

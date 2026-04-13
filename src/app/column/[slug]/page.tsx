@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import remarkGfm from 'remark-gfm';
 import { getAllColumns, getAllSlugs, getColumnBySlug } from '@/lib/mdx';
+import { formatDateFull } from '@/lib/utils';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -55,7 +56,7 @@ export default async function ColumnPage({ params }: Props) {
         </nav>
 
         <article className="bg-white rounded-2xl border border-gray-200 p-6">
-          <p className="text-xs text-gray-400 mb-2">{formatDate(col.date)}</p>
+          <p className="text-xs text-gray-400 mb-2">{formatDateFull(col.date)}</p>
           <h1 className="text-xl font-bold text-gray-800 leading-snug mb-2">{col.title}</h1>
           <p className="text-sm text-gray-500 mb-6 pb-4 border-b border-gray-100">{col.description}</p>
 
@@ -110,9 +111,4 @@ export default async function ColumnPage({ params }: Props) {
       </div>
     </div>
   );
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }

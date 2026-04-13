@@ -33,7 +33,7 @@ export function DayCard({ forecast, isToday }: { forecast: DayForecast; isToday:
         type="button"
         className="w-full text-left p-4"
         onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded ? 'true' : 'false'}
+        aria-expanded={expanded}
       >
         <div className="flex items-center gap-3">
           {/* 日付 */}

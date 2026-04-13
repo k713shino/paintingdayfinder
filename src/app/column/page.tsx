@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllColumns } from '@/lib/mdx';
+import { formatDateFull } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: '塗装テクニックコラム',
@@ -32,7 +33,7 @@ export default function ColumnListPage() {
               href={`/column/${col.slug}`}
               className="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-indigo-300 hover:shadow-sm transition-all"
             >
-              <p className="text-xs text-gray-400 mb-1">{formatDate(col.date)}</p>
+              <p className="text-xs text-gray-400 mb-1">{formatDateFull(col.date)}</p>
               <h2 className="text-base font-semibold text-gray-800 leading-snug">{col.title}</h2>
               <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{col.description}</p>
               <p className="text-xs text-indigo-500 mt-2">続きを読む →</p>
@@ -51,9 +52,4 @@ export default function ColumnListPage() {
       </div>
     </div>
   );
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }
