@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { CITIES, getCityBySlug } from '@/lib/cities';
 import { fetchWeather, calcForecasts, calcFailureRate } from '@/lib/weather';
 import { DAY_NAMES, getTodayString } from '@/lib/utils';
-import { DayCard } from '@/components/DayCard';
+import { ForecastList } from '@/components/ForecastList';
 import type { PaintType } from '@/types';
 
 export const revalidate = 1800; // 30分キャッシュ
@@ -34,6 +34,23 @@ const PAINT_TYPES: { type: PaintType; label: string }[] = [
   { type: 'enamel',    label: 'エナメル' },
 ];
 
+const SCORE_COLOR: Record<string, string> = {
+  excellent: 'text-green-600',
+  good:      'text-blue-600',
+  fair:      'text-amber-600',
+  poor:      'text-red-600',
+};
+
+/** CITIES を region でグループ化して返す */
+function groupCitiesByRegion(excludeSlug: string) {
+  const map = new Map<string, typeof CITIES>();
+  for (const city of CITIES) {
+    if (city.slug === excludeSlug) continue;
+    if (!map.has(city.region)) map.set(city.region, []);
+    map.get(city.region)!.push(city);
+  }
+  return map;
+}
 
 export default async function CityForecastPage({ params }: Props) {
   const { city: slug } = await params;
@@ -57,13 +74,7 @@ export default async function CityForecastPage({ params }: Props) {
   );
 
   const today = getTodayString();
-
-  const scoreColor: Record<string, string> = {
-    excellent: 'text-green-600',
-    good:      'text-blue-600',
-    fair:      'text-amber-600',
-    poor:      'text-red-600',
-  };
+  const regionMap = groupCitiesByRegion(slug);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-sky-50 to-indigo-50 py-8 px-4">
@@ -83,7 +94,7 @@ export default async function CityForecastPage({ params }: Props) {
           </p>
         </header>
 
-        {/* 塗料別スコア比較 */}
+        {/* 今日の塗料別スコア比較 */}
         <div className="mb-5 bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">
             今日の塗料別スコア（{today}）
@@ -95,7 +106,7 @@ export default async function CityForecastPage({ params }: Props) {
               return (
                 <div key={type} className="text-center p-3 bg-gray-50 rounded-xl">
                   <p className="text-xs text-gray-500 mb-1">{label}</p>
-                  <p className={`text-2xl font-bold ${scoreColor[todayF.scoreLabel]}`}>
+                  <p className={`text-2xl font-bold ${SCORE_COLOR[todayF.scoreLabel]}`}>
                     {todayF.paintingScore}
                   </p>
                   <p className="text-[10px] text-gray-400 mt-0.5">
@@ -125,23 +136,21 @@ export default async function CityForecastPage({ params }: Props) {
           </div>
         )}
 
-        {/* 7日間リスト（ラッカー） */}
+        {/* 7日間リスト（塗料切り替え可） */}
         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">
-          7日間の塗装スコア（ラッカー系）
+          7日間の塗装スコア
         </p>
-        <div className="space-y-3 mb-6">
-          {lacquerForecasts.map((f) => (
-            <DayCard key={f.date} forecast={f} isToday={f.date === today} />
-          ))}
+        <div className="mb-6">
+          <ForecastList forecastsByType={forecastsByType} today={today} />
         </div>
 
         {/* CTA */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 text-center shadow-sm mb-4">
           <p className="text-sm font-semibold text-gray-700 mb-1">
-            現在地や別の塗料でチェックしたい方は
+            現在地や作業環境でチェックしたい方は
           </p>
           <p className="text-xs text-gray-400 mb-3">
-            塗装日和のメインページではGPS・塗料種類の切り替えが可能です
+            メインページではGPS・塗料・作業環境の切り替えが可能です
           </p>
           <Link
             href="/"
@@ -151,18 +160,25 @@ export default async function CityForecastPage({ params }: Props) {
           </Link>
         </div>
 
-        {/* 他の都市リンク */}
+        {/* 他の都市（地方別） */}
         <div className="bg-white border border-gray-200 rounded-2xl p-4">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">他の都市</p>
-          <div className="flex flex-wrap gap-2">
-            {CITIES.filter((c) => c.slug !== slug).map((c) => (
-              <Link
-                key={c.slug}
-                href={`/forecast/${c.slug}`}
-                className="text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full transition-colors"
-              >
-                {c.name}
-              </Link>
+          <div className="space-y-3">
+            {Array.from(regionMap.entries()).map(([region, cities]) => (
+              <div key={region}>
+                <p className="text-[10px] font-bold text-gray-400 mb-1.5">{region}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {cities.map((c) => (
+                    <Link
+                      key={c.slug}
+                      href={`/forecast/${c.slug}`}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full transition-colors"
+                    >
+                      {c.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
